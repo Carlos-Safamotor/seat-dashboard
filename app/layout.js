@@ -1,15 +1,12 @@
 export const metadata = {
-  title: 'Safamotor Ad Dashboard',
-  description: 'Dashboard ejecutivo de Google Ads y Meta Ads',
+  title: 'SEAT Marketing Dashboard',
+  description: 'Dashboard ejecutivo de Google Ads y Meta Ads - Grupo Safamotor',
 }
 
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <head>
-        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      </head>
-      <body style={{ margin: 0, padding: 0, background: '#0a0e17' }}>
+      <body style={{ margin: 0, padding: 0 }}>
         {children}
       </body>
     </html>
