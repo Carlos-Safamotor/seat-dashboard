@@ -107,7 +107,7 @@ export default function Page(){
   // Filter by date
   const dateFiltered=data.filter(d=>d.fecha&&d.fecha>=sd&&d.fecha<=ed);
   // Filter by segment
-  const fd=seg==="all"?dateFiltered:dateFiltered.filter(d=>{const name=(d.campaña||d.campaign_name||"").toUpperCase();return name.includes("_"+seg)||name.includes(seg+"_")||name.includes(" "+seg+" ")||name.includes(seg+" ")||name.startsWith(seg+"_")||name.startsWith(seg+" ")||name.includes("_"+seg+"_")});
+  const fd=seg==="all"?dateFiltered:dateFiltered.filter(d=>{const name=(d.campaña||d.campaign_name||"").toUpperCase();return name.includes("-"+seg+"-")||name.includes("_"+seg+"_")||name.includes("_"+seg+"-")||name.includes("-"+seg+"_")||name.includes(" "+seg+" ")||name.includes("-"+seg+" ")||name.includes(" "+seg+"-")||name.startsWith(seg+"-")||name.startsWith(seg+"_")||name.startsWith(seg+" ")});
 
   const gD=fd.filter(d=>d.plataforma==="Google Ads"),mD=fd.filter(d=>d.plataforma==="Meta Ads");
   const ag=a=>({sp:a.reduce((s,d)=>s+parseFloat(d.coste||0),0),cl:a.reduce((s,d)=>s+parseInt(d.clics||0),0),im:a.reduce((s,d)=>s+parseInt(d.impresiones||0),0),cv:a.reduce((s,d)=>s+parseFloat(d.conversiones||0),0)});
