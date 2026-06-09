@@ -13,6 +13,7 @@ const F="-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',Aria
 const FM="-apple-system,BlinkMacSystemFont,'SF Mono',Menlo,monospace";
 const SID="1HEykheeAndB-RXqKy4wehTzrZNZvuQxpv3WuUwSsUuM";
 const SHEET_URL=`https://docs.google.com/spreadsheets/d/${SID}/edit`;
+const SHEET_API_URL="https://script.google.com/macros/s/AKfycbyEv9HdrEudmj_U-0GmRaizgFNBOyqvJt_opjGBovnAqqeDz5zFbqE3cHyB0KVt_FI4/exec";
 const MO=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const QL=["Trimestre 1","Trimestre 2","Trimestre 3","Trimestre 4"];
 const SEGMENTS=[{id:"all",label:"Todas"},{id:"VN",label:"VN"},{id:"VO",label:"VO"},{id:"PV",label:"PV"}];
@@ -78,14 +79,17 @@ function StackedPartidaBar({partidas,segLabel}){
 function BCT({monthlyBudgets,ms,cm,segLabel}){const tB=monthlyBudgets.reduce((s,v)=>s+v,0),tS=Object.values(ms).reduce((s,v)=>s+v,0);const rows=[{l:"Anual",b:tB,s:tS,isH:true}];for(let q=0;q<4;q++){let qB=0,qS=0;for(let i=q*3;i<q*3+3;i++){qB+=monthlyBudgets[i]||0;qS+=ms[i]||0}rows.push({l:QL[q],b:qB,s:qS,isQ:true})}MO.forEach((n,i)=>rows.push({l:n,b:monthlyBudgets[i]||0,s:ms[i]||0,cur:i===cm}));const cs={padding:"10px 14px",fontFamily:F,fontSize:13,borderBottom:`1px solid ${C.border}`};const ns={...cs,textAlign:"right",fontFamily:FM,fontSize:12};return(<div style={{background:"#fff",borderRadius:14,overflow:"hidden",boxShadow:C.sh,border:`1px solid ${C.border}`}}><div style={{padding:"16px 20px",background:C.blk,display:"flex",alignItems:"center",gap:8}}><div style={{width:3,height:16,background:C.red,borderRadius:2}}/><span style={{fontSize:13,color:"#fff",fontWeight:600}}>Control de presupuesto{segLabel?` · ${segLabel}`:""}</span></div><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{background:"#fafafa"}}>{["Periodo","Inv. disponible","Inv. consumida","Inv. restante","% disponible"].map(h=><th key={h} style={{...cs,textAlign:h==="Periodo"?"left":"right",fontWeight:600,color:C.tt,fontSize:10,letterSpacing:.5,textTransform:"uppercase"}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=>{const rem=r.b-r.s,pct=r.b>0?((rem/r.b)*100):0;const bg=r.isH?C.red:r.isQ?"#f8f8fa":r.cur?"#fffef0":"#fff";const tc=r.isH?"#fff":C.text;const fw=r.isH||r.isQ?700:400;return(<tr key={i} style={{background:bg}}><td style={{...cs,fontWeight:fw,color:tc}}>{r.l}</td><td style={{...ns,fontWeight:fw,color:tc}}>{fmt(r.b)}</td><td style={{...ns,fontWeight:fw,color:tc}}>{fmt(r.s)}</td><td style={{...ns,fontWeight:700,color:rem>=0?(r.isH?"#fff":C.pos):C.neg}}>{fmt(rem)}</td><td style={{...ns}}><span style={{background:pct>=0?(r.isH?"rgba(255,255,255,0.2)":"#e5f9ed"):"#ffe5e7",color:pct>=0?(r.isH?"#fff":C.pos):C.neg,padding:"2px 8px",borderRadius:20,fontSize:11,fontWeight:600}}>{r.b>0?`${pct.toFixed(1)}%`:"—"}</span></td></tr>)})}</tbody></table></div></div>)}
 
 /* Per-segment budget editor — 3 inputs per month (Meta Leads, Meta Conv, Google) */
-function SegmentEditor({seg,segLabel,mb,onChange,saving}){
+function SegmentEditor({seg,segLabel,mb,onChange,onSave,saving,saveMsg}){
   const cs={padding:"8px 12px",fontFamily:F,fontSize:13,borderBottom:`1px solid ${C.border}`};
   const inputStyle={background:"#f8f8fa",border:"1px solid #e5e5ea",borderRadius:8,color:C.text,fontFamily:FM,fontSize:12,fontWeight:600,padding:"6px 10px",outline:"none",width:96,textAlign:"right",boxSizing:"border-box"};
   const setVal=(part,month,val)=>{const k=`${part}_${seg}`;const newArr=[...(mb[k]||Array(12).fill(0))];newArr[month]=parseFloat(val)||0;onChange({...mb,[k]:newArr})};
   return(<div style={{background:"#fff",borderRadius:14,overflow:"hidden",boxShadow:C.sh,border:`1px solid ${C.border}`}}>
     <div style={{padding:"14px 18px",background:C.blk,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:3,height:16,background:C.red,borderRadius:2}}/><span style={{fontSize:13,color:"#fff",fontWeight:600}}>Presupuesto · {segLabel}</span></div>
-      {saving&&<span style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>Guardando localmente...</span>}
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        {saveMsg&&<span style={{fontSize:11,color:saveMsg.ok?"#7CDB94":"#ff8a85"}}>{saveMsg.text}</span>}
+        <button onClick={onSave} disabled={saving} style={{background:saving?"rgba(255,255,255,0.15)":C.red,color:"#fff",border:"none",borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,padding:"7px 16px",cursor:saving?"wait":"pointer",opacity:saving?0.7:1}}>{saving?"Guardando...":"Guardar"}</button>
+      </div>
     </div>
     <div style={{overflowX:"auto"}}>
     <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -126,6 +130,7 @@ export default function Page(){
   const[st,setSt]=useState("loading");
   const[seg,setSeg]=useState("all");
   const[saving,setSaving]=useState(false);
+  const[saveMsg,setSaveMsg]=useState(null);
   const now=new Date();
   const td=now.toISOString().split("T")[0];
   const d30=new Date(Date.now()-30*864e5).toISOString().split("T")[0];
@@ -159,7 +164,19 @@ export default function Page(){
     }catch(e){}
   },[]);
 
-  const saveMb=useCallback(nb=>{setMb(nb);safeSet("seat-budgets-v4",JSON.stringify(nb));setSaving(true);setTimeout(()=>setSaving(false),1000)},[]);
+  const updateMb=useCallback(nb=>{setMb(nb);safeSet("seat-budgets-v4",JSON.stringify(nb))},[]);
+
+  const saveToSheet=useCallback(async(currentMb)=>{
+    setSaving(true);setSaveMsg(null);
+    try{
+      const r=await fetch(SHEET_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({budgets:currentMb})});
+      const j=await r.json();
+      if(j.ok){setSaveMsg({ok:true,text:"Guardado ✓"});setTimeout(()=>loadBudgets(),800)}
+      else setSaveMsg({ok:false,text:"Error: "+(j.error||"desconocido")});
+    }catch(e){setSaveMsg({ok:false,text:"Error de conexión"})}
+    setSaving(false);
+    setTimeout(()=>setSaveMsg(null),4000);
+  },[loadBudgets]);
 
   const load=useCallback(async()=>{
     setLd(true);
@@ -245,7 +262,7 @@ export default function Page(){
         <div style={{marginBottom:20}}><BCT monthlyBudgets={monthlyBudgets} ms={ms} cm={cm} segLabel={segLabel}/></div>
 
         <div style={{display:"grid",gridTemplateColumns:"5fr 2fr",gap:14,marginBottom:20}}>
-          <div style={{background:"#fff",borderRadius:14,padding:20,boxShadow:C.sh,border:`1px solid ${C.border}`}}><div style={{fontSize:11,color:C.tt,letterSpacing:.5,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Inversión diaria{seg!=="all"?` · ${seg}`:""}</div><ResponsiveContainer width="100%" height={220}><AreaChart data={daily}><defs><linearGradient id="gG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.g} stopOpacity={.15}/><stop offset="100%" stopColor={C.g} stopOpacity={0}/></linearGradient><linearGradient id="mG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.m} stopOpacity={.15}/><stop offset="100%" stopColor={C.m} stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/><XAxis dataKey="fecha" tick={{fill:C.tt,fontSize:10}} tickFormatter={v=>v.slice(5)}/><YAxis tick={{fill:C.tt,fontSize:10,fontFamily:FM}} tickFormatter={v=>`${v}€`}/><Tooltip contentStyle={{background:"#fff",border:"1px solid #e5e5ea",borderRadius:10,fontFamily:F,fontSize:12,boxShadow:C.shm}} formatter={(v,n)=>[`${parseFloat(v).toFixed(2)} €`,n]}/><Area type="monotone" dataKey="google" stackId="1" stroke={C.g} fill="url(#gG)" name="Google Ads" strokeWidth={1.5}/><Area type="monotone" dataKey="meta" stackId="1" stroke={C.m} fill="url(#mG)" name="Meta Ads" strokeWidth={1.5}/></AreaChart></ResponsiveContainer></div>
+          <div style={{background:"#fff",borderRadius:14,padding:20,boxShadow:C.sh,border:`1px solid ${C.border}`}}><div style={{fontSize:11,color:C.tt,letterSpacing:.5,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Inversión diaria{seg!=="all"?` · ${seg}`:""}</div><ResponsiveContainer width="100%" height={220}><LineChart data={daily}><CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/><XAxis dataKey="fecha" tick={{fill:C.tt,fontSize:10}} tickFormatter={v=>v.slice(5)}/><YAxis tick={{fill:C.tt,fontSize:10,fontFamily:FM}} tickFormatter={v=>`${v}€`}/><Tooltip contentStyle={{background:"#fff",border:"1px solid #e5e5ea",borderRadius:10,fontFamily:F,fontSize:12,boxShadow:C.shm}} formatter={(v,n)=>[`${parseFloat(v).toFixed(2)} €`,n]}/><Line type="monotone" dataKey="google" stroke={C.g} strokeWidth={2} dot={false} name="Google Ads"/><Line type="monotone" dataKey="meta" stroke="#A855F7" strokeWidth={2} dot={false} name="Meta Ads"/></LineChart></ResponsiveContainer></div>
           <div style={{background:"#fff",borderRadius:14,padding:20,boxShadow:C.sh,border:`1px solid ${C.border}`,display:"flex",flexDirection:"column"}}><div style={{fontSize:11,color:C.tt,letterSpacing:.5,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Distribución</div><div style={{flex:1,display:"flex",alignItems:"center"}}><ResponsiveContainer width="100%" height={160}><PieChart><Pie data={piD} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" stroke="none" paddingAngle={2}>{piD.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip contentStyle={{background:"#fff",border:"1px solid #e5e5ea",borderRadius:10,fontFamily:F,fontSize:12}} formatter={v=>fmt(v)}/></PieChart></ResponsiveContainer></div><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:8}}>{piD.map(p=>(<div key={p.name} style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:8,height:8,borderRadius:"50%",background:p.color}}/><span style={{fontSize:12,color:C.ts,flex:1}}>{p.name}</span><span style={{fontSize:13,fontWeight:600,fontFamily:FM}}>{tot.sp>0?((p.value/tot.sp)*100).toFixed(0):0}%</span></div>))}</div></div>
         </div>
         <div style={{background:"#fff",borderRadius:14,padding:20,boxShadow:C.sh,border:`1px solid ${C.border}`}}><div style={{fontSize:11,color:C.tt,letterSpacing:.5,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Clics y conversiones{seg!=="all"?` · ${seg}`:""}</div><ResponsiveContainer width="100%" height={180}><LineChart data={daily}><CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/><XAxis dataKey="fecha" tick={{fill:C.tt,fontSize:10}} tickFormatter={v=>v.slice(5)}/><YAxis yAxisId="l" tick={{fill:C.tt,fontSize:10,fontFamily:FM}}/><YAxis yAxisId="r" orientation="right" tick={{fill:C.tt,fontSize:10,fontFamily:FM}}/><Tooltip contentStyle={{background:"#fff",border:"1px solid #e5e5ea",borderRadius:10,fontFamily:F,fontSize:12}}/><Line yAxisId="l" type="monotone" dataKey="clics" stroke={C.red} strokeWidth={1.5} dot={false} name="Clics"/><Line yAxisId="r" type="monotone" dataKey="conv" stroke={C.pos} strokeWidth={1.5} dot={false} name="Conversiones"/></LineChart></ResponsiveContainer></div>
@@ -273,7 +290,7 @@ export default function Page(){
           </div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
-          {SEGS.map(s=>(<SegmentEditor key={s} seg={s} segLabel={s.toUpperCase()} mb={mb} onChange={saveMb} saving={saving}/>))}
+          {SEGS.map(s=>(<SegmentEditor key={s} seg={s} segLabel={s.toUpperCase()} mb={mb} onChange={updateMb} onSave={()=>saveToSheet(mb)} saving={saving} saveMsg={saveMsg}/>))}
         </div>
         <div style={{marginTop:20}}><BCT monthlyBudgets={monthlyBudgets} ms={ms} cm={cm} segLabel={segLabel}/></div>
       </>}
